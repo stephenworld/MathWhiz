@@ -19,7 +19,8 @@ export interface Level {
   operators: MathOperator[];
   numberRange: [number, number]; // min and max for operands
   problemCount: number;
-  timeLimitSeconds?: number; // Optional: for timed levels
+  timeLimitSeconds?: number; // Optional: for overall level
+  timePerQuestionSeconds?: number; // Optional: for individual questions
   rewardMessage?: string;
   isSpeedChallenge?: boolean; // Indicates if this level uses adaptive speed logic
 }
@@ -31,7 +32,8 @@ export interface GameState {
   userAnswer: string;
   score: number;
   lives: number;
-  timeLeft: number; // in seconds
+  timeLeft: number; // Overall level time in seconds
+  questionTimeLeft: number; // Time for current question in seconds
   feedback: { type: 'correct' | 'incorrect' | 'info'; message: string } | null;
   isGameOver: boolean;
   startTime: number | null; // Timestamp for speed calculation

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, CheckCircle, Heart, HelpCircle, Info, Timer } from 'lucide-react';
+import { AlertCircle, CheckCircle, Heart, HelpCircle, Info, Timer, Hourglass } from 'lucide-react';
 import PlusIcon from '@/components/icons/PlusIcon';
 import MinusIcon from '@/components/icons/MinusIcon';
 import MultiplyIcon from '@/components/icons/MultiplyIcon';
@@ -40,33 +40,34 @@ export default function GameplayClient({ level }: GameplayClientProps) {
   
   const [gameState, setGameState] = useState<GameState>({
     currentLevel: level,
-    problems: [], // Initialize with empty problems
+    problems: [],
     currentProblemIndex: 0,
     userAnswer: '',
     score: 0,
     lives: INITIAL_LIVES,
     timeLeft: level.timeLimitSeconds ?? -1,
+    questionTimeLeft: level.timePerQuestionSeconds ?? -1,
     feedback: null,
     isGameOver: false,
-    startTime: null, // Will be set when problems are loaded client-side
+    startTime: null,
     dynamicDifficultyFactor: 1,
   });
   const [clientReady, setClientReady] = useState(false);
 
-  // Effect to generate problems on the client after mount
   useEffect(() => {
     setClientReady(true);
     const problems = generateProblemsForLevel(level);
     setGameState(prev => ({
       ...prev,
       problems: problems,
-      startTime: Date.now(), // Set start time when problems are actually ready
+      startTime: Date.now(),
+      questionTimeLeft: level.timePerQuestionSeconds ?? -1, // Initialize question timer
     }));
-  }, [level]); // Re-generate if level prop changes
+  }, [level]);
 
   const currentProblem = gameState.problems[gameState.currentProblemIndex];
 
-  // Timer logic
+  // Overall Level Timer logic
   useEffect(() => {
     if (!clientReady || gameState.timeLeft === -1 || gameState.isGameOver || !gameState.startTime) return;
 
@@ -81,6 +82,23 @@ export default function GameplayClient({ level }: GameplayClientProps) {
 
     return () => clearInterval(timerId);
   }, [clientReady, gameState.timeLeft, gameState.isGameOver, gameState.startTime]);
+
+  // Per-Question Timer Logic
+  useEffect(() => {
+    if (!clientReady || gameState.questionTimeLeft === -1 || gameState.isGameOver || !currentProblem || gameState.feedback) return;
+
+    if (gameState.questionTimeLeft === 0) {
+      handleQuestionTimeUp();
+      return;
+    }
+
+    const questionTimerId = setInterval(() => {
+      setGameState(prev => ({ ...prev, questionTimeLeft: Math.max(0, prev.questionTimeLeft - 1) }));
+    }, 1000);
+
+    return () => clearInterval(questionTimerId);
+  }, [clientReady, gameState.questionTimeLeft, gameState.isGameOver, currentProblem, gameState.feedback]);
+
 
   // Game over logic
   useEffect(() => {
@@ -106,55 +124,22 @@ export default function GameplayClient({ level }: GameplayClientProps) {
   }, [clientReady, gameState.isGameOver, gameState.score, gameState.lives, gameState.timeLeft, gameState.currentProblemIndex, gameState.feedback, gameState.startTime, level, router]);
 
 
-  const handleAnswerSubmit = useCallback(() => {
-    if (!clientReady || gameState.isGameOver || !currentProblem) return;
-
-    const answerNum = parseInt(gameState.userAnswer, 10);
-    if (isNaN(answerNum)) {
-      setGameState(prev => ({ ...prev, feedback: { type: 'info', message: "Please enter a number." }}));
-      toast({ title: "Invalid Input", description: "Please enter a valid number.", variant: "destructive" });
-      return;
-    }
-
-    const isCorrect = checkAnswer(currentProblem.answer, answerNum);
-    let newScore = gameState.score;
-    let newLives = gameState.lives;
-    let immediateFeedback: GameState['feedback'];
-    let newDynamicDifficultyFactor = gameState.dynamicDifficultyFactor;
-
-    if (isCorrect) {
-      newScore += 1;
-      immediateFeedback = { type: 'correct', message: "Correct! Great job!" };
-      toast({ title: "Correct!", description: "Awesome work!", className: "bg-green-500 text-white" });
-      if (level.isSpeedChallenge) {
-        newDynamicDifficultyFactor = Math.min(2.0, gameState.dynamicDifficultyFactor * 1.05); 
-      }
-    } else {
-      newLives -= 1;
-      immediateFeedback = { type: 'incorrect', message: `Not quite! The answer was ${currentProblem.answer}.` };
-      toast({ title: "Incorrect", description: `The correct answer was ${currentProblem.answer}. Keep trying!`, variant: "destructive" });
-       if (level.isSpeedChallenge) {
-        newDynamicDifficultyFactor = Math.max(0.5, gameState.dynamicDifficultyFactor * 0.9);
-      }
-    }
-    
+  const proceedToNextState = useCallback((isCorrect: boolean | null, newScore: number, newLives: number, feedbackMessage: string, feedbackType: 'correct' | 'incorrect' | 'info') => {
     setGameState(prev => ({
       ...prev,
       score: newScore,
       lives: newLives,
-      feedback: immediateFeedback,
+      feedback: { type: feedbackType, message: feedbackMessage },
       userAnswer: '',
-      dynamicDifficultyFactor: newDynamicDifficultyFactor,
     }));
 
     setTimeout(() => {
       setGameState(prev => {
-        // Use 'prev' from functional update to ensure latest state
         if (prev.lives <= 0) {
           return { ...prev, isGameOver: true, feedback: { type: 'info', message: "Game Over! Better luck next time." } };
         }
-        if (prev.currentProblemIndex >= level.problemCount - 1 && isCorrect) {
-          return { ...prev, isGameOver: true, feedback: { type: 'correct', message: level.rewardMessage || "You completed the level!" } };
+        if (prev.currentProblemIndex >= level.problemCount - 1 && (isCorrect === null || isCorrect)) { // isCorrect can be null for time up on last question
+          return { ...prev, isGameOver: true, feedback: { type: isCorrect ? 'correct' : 'info', message: isCorrect ? (level.rewardMessage || "You completed the level!") : feedbackMessage } };
         }
         if (prev.currentProblemIndex < level.problemCount - 1) {
           const nextProblemValue = level.isSpeedChallenge ? generateProblem(level, prev.dynamicDifficultyFactor) : prev.problems[prev.currentProblemIndex + 1];
@@ -170,14 +155,70 @@ export default function GameplayClient({ level }: GameplayClientProps) {
             ...prev,
             currentProblemIndex: prev.currentProblemIndex + 1,
             problems: level.isSpeedChallenge ? updatedProblemsList : prev.problems,
-            feedback: null, // Clear feedback for next problem
+            feedback: null,
+            questionTimeLeft: level.timePerQuestionSeconds ?? -1, // Reset question timer
           };
         }
-        return prev; // No change if none of the conditions met
+        // If it's the last problem and it was incorrect (or time up) but lives > 0
+        if (prev.currentProblemIndex >= level.problemCount - 1 && !isCorrect && prev.lives > 0) {
+             return { ...prev, isGameOver: true, feedback: { type: 'info', message: "Game Over! You ran out of questions or made a mistake on the last one." } };
+        }
+        return prev;
       });
     }, 1500);
+  }, [level, generateProblem]);
 
-  }, [clientReady, gameState, currentProblem, level, router, toast, checkAnswer, generateProblem]);
+  const handleQuestionTimeUp = useCallback(() => {
+    if (!clientReady || gameState.isGameOver || !currentProblem || gameState.feedback) return;
+
+    toast({ title: "Time's Up!", description: `The correct answer was ${currentProblem.answer}.`, variant: "destructive" });
+    let newDynamicDifficultyFactor = gameState.dynamicDifficultyFactor;
+    if (level.isSpeedChallenge) {
+      newDynamicDifficultyFactor = Math.max(0.5, gameState.dynamicDifficultyFactor * 0.9);
+    }
+    setGameState(prev => ({...prev, dynamicDifficultyFactor: newDynamicDifficultyFactor})); // Update difficulty factor before calling proceed
+    proceedToNextState(false, gameState.score, gameState.lives - 1, `Time's up! The answer was ${currentProblem.answer}.`, 'incorrect');
+  }, [clientReady, gameState, currentProblem, level, toast, proceedToNextState]);
+
+
+  const handleAnswerSubmit = useCallback(() => {
+    if (!clientReady || gameState.isGameOver || !currentProblem || gameState.feedback) return;
+
+    const answerNum = parseInt(gameState.userAnswer, 10);
+    if (isNaN(answerNum)) {
+      setGameState(prev => ({ ...prev, feedback: { type: 'info', message: "Please enter a number." }}));
+      toast({ title: "Invalid Input", description: "Please enter a valid number.", variant: "destructive" });
+      return;
+    }
+
+    const isCorrect = checkAnswer(currentProblem.answer, answerNum);
+    let newScore = gameState.score;
+    let newLives = gameState.lives;
+    let feedbackMessage: string;
+    let feedbackType: 'correct' | 'incorrect';
+    let newDynamicDifficultyFactor = gameState.dynamicDifficultyFactor;
+
+    if (isCorrect) {
+      newScore += 1;
+      feedbackMessage = "Correct! Great job!";
+      feedbackType = 'correct';
+      toast({ title: "Correct!", description: "Awesome work!", className: "bg-green-500 text-white" });
+      if (level.isSpeedChallenge) {
+        newDynamicDifficultyFactor = Math.min(2.0, gameState.dynamicDifficultyFactor * 1.05); 
+      }
+    } else {
+      newLives -= 1;
+      feedbackMessage = `Not quite! The answer was ${currentProblem.answer}.`;
+      feedbackType = 'incorrect';
+      toast({ title: "Incorrect", description: `The correct answer was ${currentProblem.answer}. Keep trying!`, variant: "destructive" });
+       if (level.isSpeedChallenge) {
+        newDynamicDifficultyFactor = Math.max(0.5, gameState.dynamicDifficultyFactor * 0.9);
+      }
+    }
+    setGameState(prev => ({...prev, dynamicDifficultyFactor: newDynamicDifficultyFactor})); // Update difficulty factor
+    proceedToNextState(isCorrect, newScore, newLives, feedbackMessage, feedbackType);
+
+  }, [clientReady, gameState, currentProblem, level, toast, checkAnswer, proceedToNextState]);
 
 
   if (!clientReady || !currentProblem) {
@@ -222,57 +263,62 @@ export default function GameplayClient({ level }: GameplayClientProps) {
   const progressPercentage = (gameState.currentProblemIndex / level.problemCount) * 100;
 
   return (
-    <Card className="w-full max-w-xl p-6 md:p-8 shadow-xl bg-card rounded-2xl">
-      <CardHeader className="text-center pb-4">
-        <CardTitle className="text-3xl sm:text-4xl font-headline text-primary">{level.title}</CardTitle>
-        <CardDescription className="text-base sm:text-lg text-foreground/80">{level.description}</CardDescription>
+    <Card className="w-full max-w-xl p-4 sm:p-6 shadow-xl bg-card rounded-2xl">
+      <CardHeader className="text-center pb-3">
+        <CardTitle className="text-2xl sm:text-3xl font-headline text-primary">{level.title}</CardTitle>
+        <CardDescription className="text-sm sm:text-base text-foreground/80">{level.description}</CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        <div className="flex justify-between items-center text-lg font-semibold">
-          <div className="flex items-center gap-2 text-primary">
-            <CheckCircle className="w-6 h-6" /> Score: {gameState.score}
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-base sm:text-lg font-semibold">
+          <div className="flex items-center gap-1 sm:gap-2 text-primary">
+            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" /> Score: {gameState.score}
           </div>
-          <div className="flex items-center gap-2 text-red-500">
-            <Heart className="w-6 h-6" /> Lives: {gameState.lives}
+          <div className="flex items-center gap-1 sm:gap-2 text-red-500">
+            <Heart className="w-5 h-5 sm:w-6 sm:h-6" /> Lives: {gameState.lives}
           </div>
           {gameState.timeLeft !== -1 && (
-            <div className={`flex items-center gap-2 ${gameState.timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-accent'}`}>
-              <Timer className="w-6 h-6" /> Time: {gameState.timeLeft}s
+            <div className={`flex items-center gap-1 sm:gap-2 ${gameState.timeLeft < 10 ? 'text-red-500 animate-pulse' : 'text-accent'}`}>
+              <Timer className="w-5 h-5 sm:w-6 sm:h-6" /> Level: {gameState.timeLeft}s
+            </div>
+          )}
+           {gameState.questionTimeLeft !== -1 && (
+            <div className={`col-span-2 sm:col-span-1 sm:justify-self-end flex items-center gap-1 sm:gap-2 ${gameState.questionTimeLeft < (level.timePerQuestionSeconds ?? 10) / 2  ? 'text-orange-500' : 'text-blue-500'} ${gameState.questionTimeLeft < 5 ? 'animate-pulse' : ''}`}>
+              <Hourglass className="w-5 h-5 sm:w-6 sm:h-6" /> Question: {gameState.questionTimeLeft}s
             </div>
           )}
         </div>
 
-        <div className="my-4">
-          <Progress value={progressPercentage} aria-label={`${progressPercentage.toFixed(0)}% complete`} className="w-full h-4 rounded-full" />
-          <p className="text-sm text-muted-foreground text-center mt-1">Problem {gameState.currentProblemIndex + 1} of {level.problemCount}</p>
+        <div className="my-3">
+          <Progress value={progressPercentage} aria-label={`${progressPercentage.toFixed(0)}% complete`} className="w-full h-3 sm:h-4 rounded-full" />
+          <p className="text-xs sm:text-sm text-muted-foreground text-center mt-1">Problem {gameState.currentProblemIndex + 1} of {level.problemCount}</p>
         </div>
 
-        <div className="bg-muted/40 p-4 sm:p-6 rounded-xl text-center shadow-inner">
-          <p className="text-4xl sm:text-5xl md:text-6xl font-bold text-secondary-foreground bg-secondary py-4 px-2 rounded-lg flex items-center justify-center gap-3 sm:gap-4 select-none" aria-live="polite">
+        <div className="bg-muted/40 p-3 sm:p-4 rounded-xl text-center shadow-inner">
+          <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-secondary-foreground bg-secondary py-3 px-1 sm:py-4 sm:px-2 rounded-lg flex items-center justify-center gap-2 sm:gap-3 select-none" aria-live="polite">
             <span>{currentProblem.num1}</span>
             {getOperatorIcon(currentProblem.operator)}
             <span>{currentProblem.num2}</span>
             <span>=</span>
-            <span className="text-muted-foreground ml-2">?</span>
+            <span className="text-muted-foreground ml-1 sm:ml-2">?</span>
           </p>
         </div>
         
-        <form onSubmit={(e) => { e.preventDefault(); handleAnswerSubmit(); }} className="space-y-4">
+        <form onSubmit={(e) => { e.preventDefault(); handleAnswerSubmit(); }} className="space-y-3">
           <Input
             type="number"
             pattern="\d*"
             value={gameState.userAnswer}
             onChange={(e) => setGameState(prev => ({ ...prev, userAnswer: e.target.value }))}
             placeholder="Your Answer"
-            className="text-2xl h-12 text-center rounded-lg focus:ring-2 focus:ring-accent shadow-md"
+            className="text-xl sm:text-2xl h-11 sm:h-12 text-center rounded-lg focus:ring-2 focus:ring-accent shadow-sm"
             aria-label="Enter your answer"
             disabled={!!gameState.feedback || gameState.isGameOver}
             autoFocus
           />
           <Button 
             type="submit" 
-            className="w-full text-xl py-3 rounded-lg bg-secondary hover:bg-secondary/90 text-secondary-foreground"
+            className="w-full text-lg sm:text-xl py-2.5 sm:py-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground btn-3d"
             disabled={!!gameState.feedback || gameState.isGameOver || !gameState.userAnswer}
             aria-label="Submit Answer"
           >
@@ -281,14 +327,14 @@ export default function GameplayClient({ level }: GameplayClientProps) {
         </form>
 
         {gameState.feedback && (
-          <div className={`mt-4 p-4 rounded-md text-center text-lg font-medium flex items-center justify-center gap-2
+          <div className={`mt-3 p-3 rounded-md text-center text-base sm:text-lg font-medium flex items-center justify-center gap-2
             ${gameState.feedback.type === 'correct' ? 'bg-green-100 text-green-700' : ''}
             ${gameState.feedback.type === 'incorrect' ? 'bg-red-100 text-red-700' : ''}
             ${gameState.feedback.type === 'info' ? 'bg-blue-100 text-blue-700' : ''}
           `}>
-            {gameState.feedback.type === 'correct' && <CheckCircle className="w-6 h-6" />}
-            {gameState.feedback.type === 'incorrect' && <AlertCircle className="w-6 h-6" />}
-            {gameState.feedback.type === 'info' && <Info className="w-6 h-6" />}
+            {gameState.feedback.type === 'correct' && <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />}
+            {gameState.feedback.type === 'incorrect' && <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6" />}
+            {gameState.feedback.type === 'info' && <Info className="w-5 h-5 sm:w-6 sm:h-6" />}
             {gameState.feedback.message}
           </div>
         )}
@@ -296,4 +342,3 @@ export default function GameplayClient({ level }: GameplayClientProps) {
     </Card>
   );
 }
-

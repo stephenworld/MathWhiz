@@ -10,6 +10,7 @@ export const LEVELS: Level[] = [
     numberRange: [1, 10],
     problemCount: 10,
     rewardMessage: 'Great job with additions!',
+    timePerQuestionSeconds: 20,
   },
   {
     id: 'simple-subtraction',
@@ -20,6 +21,7 @@ export const LEVELS: Level[] = [
     numberRange: [1, 10], // num1 will be >= num2
     problemCount: 10,
     rewardMessage: 'Subtraction superstar!',
+    timePerQuestionSeconds: 20,
   },
   {
     id: 'mixed-easy',
@@ -31,6 +33,7 @@ export const LEVELS: Level[] = [
     problemCount: 12,
     rewardMessage: 'You mastered the mix!',
     timeLimitSeconds: 180, // 3 minutes
+    timePerQuestionSeconds: 15,
   },
   {
     id: 'multiplication-basics',
@@ -41,6 +44,7 @@ export const LEVELS: Level[] = [
     numberRange: [1, 10], // Operands for multiplication
     problemCount: 15,
     rewardMessage: 'Multiplication master!',
+    timePerQuestionSeconds: 25,
   },
   {
     id: 'division-intro',
@@ -51,6 +55,7 @@ export const LEVELS: Level[] = [
     numberRange: [1, 100], // num1 will be product, num2 will be a factor from 1-10
     problemCount: 15,
     rewardMessage: 'Division dynamo!',
+    timePerQuestionSeconds: 30,
   },
   {
     id: 'brain-booster',
@@ -62,6 +67,7 @@ export const LEVELS: Level[] = [
     problemCount: 20,
     rewardMessage: 'Your brain is super strong!',
     timeLimitSeconds: 300, // 5 minutes
+    timePerQuestionSeconds: 20,
   },
   {
     id: 'speedy-sums',
@@ -72,8 +78,9 @@ export const LEVELS: Level[] = [
     numberRange: [10, 99],
     problemCount: 25, // More problems for a challenge
     timeLimitSeconds: 120, // 2 minutes - demanding
+    timePerQuestionSeconds: 8, // Shorter time per question for speed challenge
     rewardMessage: 'Lightning fast calculations!',
-    isSpeedChallenge: true, // This can be used to trigger adaptive logic if implemented
+    isSpeedChallenge: true, 
   },
 ];
 
