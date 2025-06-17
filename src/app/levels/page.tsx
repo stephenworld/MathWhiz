@@ -1,3 +1,4 @@
+
 import LevelSelector from '@/components/game/LevelSelector';
 import { LEVELS } from '@/lib/levels';
 import { ArrowLeft } from 'lucide-react';
@@ -8,7 +9,7 @@ export default function LevelSelectionPage() {
   return (
     <div className="flex flex-col items-center min-h-screen p-4 sm:p-6 md:p-8 bg-gradient-to-br from-background to-blue-200">
       <header className="w-full max-w-4xl mb-8 text-center relative">
-        <Link href="/" passHref legacyBehavior>
+        <Link href="/">
           <Button variant="ghost" className="absolute left-0 top-1/2 -translate-y-1/2 text-primary hover:bg-primary/10 p-2 rounded-full">
             <ArrowLeft className="h-8 w-8" />
             <span className="sr-only">Back to Home</span>
