@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Level, Problem, GameState, GameResult } from '@/lib/types';
@@ -25,7 +26,7 @@ interface GameplayClientProps {
 const INITIAL_LIVES = 3;
 
 const getOperatorIcon = (operator: Problem['operator']) => {
-  const iconProps = { className: "w-8 h-8 sm:w-10 sm:h-10 text-primary" };
+  const iconProps = { className: "w-8 h-8 sm:w-10 sm:h-10 text-secondary-foreground" };
   switch (operator) {
     case '+': return <PlusIcon {...iconProps} />;
     case '-': return <MinusIcon {...iconProps} />;
@@ -205,7 +206,7 @@ export default function GameplayClient({ level }: GameplayClientProps) {
   const progressPercentage = (gameState.currentProblemIndex / level.problemCount) * 100;
 
   return (
-    <Card className="w-full max-w-xl p-4 sm:p-6 md:p-8 shadow-2xl bg-card/90 backdrop-blur-sm rounded-2xl border-2 border-primary/30">
+    <Card className="w-full max-w-xl p-6 md:p-8 shadow-xl bg-card rounded-2xl">
       <CardHeader className="text-center pb-4">
         <CardTitle className="text-3xl sm:text-4xl font-headline text-primary">{level.title}</CardTitle>
         <CardDescription className="text-base sm:text-lg text-foreground/80">{level.description}</CardDescription>
@@ -231,30 +232,31 @@ export default function GameplayClient({ level }: GameplayClientProps) {
           <p className="text-sm text-muted-foreground text-center mt-1">Problem {gameState.currentProblemIndex + 1} of {level.problemCount}</p>
         </div>
 
-        <div className="bg-primary/10 p-6 sm:p-8 rounded-xl text-center shadow-inner">
-          <p className="text-4xl sm:text-5xl md:text-6xl font-bold text-primary-foreground bg-primary py-4 px-2 rounded-lg flex items-center justify-center gap-3 sm:gap-4 select-none" aria-live="polite">
+        <div className="bg-muted/40 p-4 sm:p-6 rounded-xl text-center shadow-inner">
+          <p className="text-4xl sm:text-5xl md:text-6xl font-bold text-secondary-foreground bg-secondary py-4 px-2 rounded-lg flex items-center justify-center gap-3 sm:gap-4 select-none" aria-live="polite">
             <span>{currentProblem.num1}</span>
             {getOperatorIcon(currentProblem.operator)}
             <span>{currentProblem.num2}</span>
-            <span className="text-foreground/50">= ?</span>
+            <span>=</span>
+            <span className="text-muted-foreground ml-2">?</span>
           </p>
         </div>
         
         <form onSubmit={(e) => { e.preventDefault(); handleAnswerSubmit(); }} className="space-y-4">
           <Input
-            type="number" // Changed to number for better mobile UX
-            pattern="\d*" // Allow only digits
+            type="number"
+            pattern="\d*"
             value={gameState.userAnswer}
             onChange={(e) => setGameState(prev => ({ ...prev, userAnswer: e.target.value }))}
             placeholder="Your Answer"
-            className="text-2xl sm:text-3xl h-16 sm:h-20 text-center rounded-lg focus:ring-2 focus:ring-accent shadow-md"
+            className="text-2xl h-14 text-center rounded-lg focus:ring-2 focus:ring-accent shadow-md"
             aria-label="Enter your answer"
             disabled={!!gameState.feedback || gameState.isGameOver}
             autoFocus
           />
           <Button 
             type="submit" 
-            className="w-full text-xl sm:text-2xl py-6 sm:py-7 rounded-lg btn-3d-accent"
+            className="w-full text-xl py-4 rounded-lg bg-secondary hover:bg-secondary/90 text-primary-foreground"
             disabled={!!gameState.feedback || gameState.isGameOver || !gameState.userAnswer}
             aria-label="Submit Answer"
           >
