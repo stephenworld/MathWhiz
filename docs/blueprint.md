@@ -1,6 +1,6 @@
-# **App Name**: Math Whiz Kids
+# Math Whiz Kids
 
-## Core Features:
+## Core Features
 
 - Interactive Start Menu: Intuitive start menu with easy navigation and playful design suitable for young children.
 - Adaptive Level Selection: Level selection screen with increasing difficulty indicated through visual cues, like number of stars or progress bar.
@@ -9,7 +9,7 @@
 - Celebratory Feedback: Display result screen that celebrates user progress through fun animations and clear feedback
 - Adaptive Speed Challenge: Timer mode where speed and accuracy affects final scores, suitable for older children. Difficulty will dynamically adapt to the pace of user answering.
 
-## Style Guidelines:
+## Style Guidelines
 
 - Primary color: A vibrant blue (#29ABE2) to instill confidence and calmness in children.
 - Background color: A very light blue (#E5F5F9) that will ensure low fatigue of eyes.
