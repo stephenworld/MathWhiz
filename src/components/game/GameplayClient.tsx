@@ -24,7 +24,7 @@ interface GameplayClientProps {
 const INITIAL_LIVES = 3;
 
 const getOperatorIcon = (operator: Problem['operator']) => {
-  const iconProps = { className: "w-8 h-8 sm:w-10 sm:h-10 text-secondary-foreground" };
+  const iconProps = { className: "w-10 h-10 text-secondary-foreground" };
   switch (operator) {
     case '+': return <PlusIcon {...iconProps} />;
     case '-': return <MinusIcon {...iconProps} />;
@@ -104,7 +104,17 @@ export default function GameplayClient({ level }: GameplayClientProps) {
   useEffect(() => {
     if (!clientReady || !gameState.isGameOver || !gameState.startTime) return;
     
-    const problemsAttempted = gameState.currentProblemIndex + (gameState.feedback?.type !== 'correct' && gameState.feedback !== null ? 1 : 0);
+    const isWin = gameState.lives > 0 && (gameState.timeLeft > 0 || gameState.timeLeft === -1) && gameState.currentProblemIndex >= level.problemCount - 1 && gameState.feedback?.type === 'correct';
+    
+    let problemsAttempted;
+    if (isWin) {
+      problemsAttempted = level.problemCount;
+    } else if (gameState.feedback?.message === "Time's up!") { // Overall level timer ran out
+      problemsAttempted = gameState.currentProblemIndex;
+    } else { // Lost all lives, or got final question wrong, or question timer ran out
+      problemsAttempted = gameState.currentProblemIndex + 1;
+    }
+    
     const problemsCorrect = gameState.score;
     const timeTaken = Math.floor((Date.now() - gameState.startTime) / 1000);
       
@@ -115,7 +125,7 @@ export default function GameplayClient({ level }: GameplayClientProps) {
         problemsAttempted: problemsAttempted,
         problemsCorrect: problemsCorrect,
         timeTakenSeconds: timeTaken,
-        isWin: gameState.lives > 0 && (gameState.timeLeft > 0 || gameState.timeLeft === -1) && gameState.currentProblemIndex >= level.problemCount -1 && gameState.feedback?.type === 'correct',
+        isWin: isWin,
     };
 
     setTimeout(() => {
@@ -269,7 +279,7 @@ export default function GameplayClient({ level }: GameplayClientProps) {
         <CardDescription className="text-sm sm:text-base text-foreground/80">{level.description}</CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-base sm:text-lg font-semibold">
           <div className="flex items-center gap-1 sm:gap-2 text-primary">
             <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" /> Score: {gameState.score}
@@ -294,8 +304,8 @@ export default function GameplayClient({ level }: GameplayClientProps) {
           <p className="text-xs sm:text-sm text-muted-foreground text-center mt-1">Problem {gameState.currentProblemIndex + 1} of {level.problemCount}</p>
         </div>
 
-        <div className="bg-muted/40 p-3 sm:p-4 rounded-xl text-center shadow-inner">
-          <p className="text-3xl sm:text-4xl md:text-5xl font-bold text-secondary-foreground bg-secondary py-3 px-1 sm:py-4 sm:px-2 rounded-lg flex items-center justify-center gap-2 sm:gap-3 select-none" aria-live="polite">
+        <div className="bg-muted/40 p-4 sm:p-6 rounded-xl text-center shadow-inner">
+          <p className="text-4xl sm:text-5xl md:text-6xl font-bold text-secondary-foreground bg-secondary py-4 px-2 rounded-lg flex items-center justify-center gap-3 sm:gap-4 select-none" aria-live="polite">
             <span>{currentProblem.num1}</span>
             {getOperatorIcon(currentProblem.operator)}
             <span>{currentProblem.num2}</span>
@@ -304,7 +314,7 @@ export default function GameplayClient({ level }: GameplayClientProps) {
           </p>
         </div>
         
-        <form onSubmit={(e) => { e.preventDefault(); handleAnswerSubmit(); }} className="space-y-3">
+        <form onSubmit={(e) => { e.preventDefault(); handleAnswerSubmit(); }} className="space-y-4">
           <Input
             type="number"
             pattern="\d*"
