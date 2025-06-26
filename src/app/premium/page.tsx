@@ -1,6 +1,7 @@
 
 "use client";
 
+import { useState } from 'react';
 import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -8,14 +9,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Award, Zap, Unlock, Star, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import ConfettiAnimation from '@/components/game/ConfettiAnimation';
 
 export default function PremiumPage() {
   const router = useRouter();
   const { isPremium, setPremium, isLoading } = usePremiumStatus();
   const { toast } = useToast();
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const handleUpgrade = () => {
     setPremium(true);
+    setShowConfetti(true);
     toast({
       title: 'Upgrade Successful! 🎉',
       description: 'You now have access to all premium levels.',
@@ -25,6 +29,7 @@ export default function PremiumPage() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-br from-background to-blue-200">
+      {showConfetti && <ConfettiAnimation />}
       <Card className="w-full max-w-lg p-6 text-center shadow-2xl bg-card/90 backdrop-blur-sm rounded-2xl border-2 border-yellow-400">
         <CardHeader>
           <Star className="mx-auto h-16 w-16 mb-4 text-yellow-400" />
