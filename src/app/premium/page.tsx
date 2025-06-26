@@ -7,15 +7,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Award, Zap, Unlock, Star, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PremiumPage() {
   const router = useRouter();
   const { isPremium, setPremium, isLoading } = usePremiumStatus();
+  const { toast } = useToast();
 
   const handleUpgrade = () => {
     setPremium(true);
-    // You might show a success message before redirecting
-    router.push('/levels');
+    toast({
+      title: 'Upgrade Successful! 🎉',
+      description: 'You now have access to all premium levels.',
+      className: 'bg-green-500 text-white border-green-600',
+    });
   };
 
   return (
