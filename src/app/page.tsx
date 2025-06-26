@@ -15,7 +15,9 @@ export default function HomePage() {
         </p>
       </header>
       
-      <StartMenuClient />
+      <div className="flex flex-col sm:flex-row gap-4">
+        <StartMenuClient />
+      </div>
 
       <footer className="absolute bottom-4 text-sm text-foreground/60">
         Built with fun and learning in mind!

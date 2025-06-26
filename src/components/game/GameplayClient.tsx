@@ -7,15 +7,16 @@ import { useRouter } from 'next/navigation';
 import { generateProblem, checkAnswer, generateProblemsForLevel } from '@/lib/gameLogic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, CheckCircle, Heart, HelpCircle, Info, Timer, Hourglass } from 'lucide-react';
+import { AlertCircle, CheckCircle, Heart, HelpCircle, Info, Timer, Hourglass, Lock, Crown } from 'lucide-react';
 import PlusIcon from '@/components/icons/PlusIcon';
 import MinusIcon from '@/components/icons/MinusIcon';
 import MultiplyIcon from '@/components/icons/MultiplyIcon';
 import DivideIcon from '@/components/icons/DivideIcon';
 import SparkleIcon from '@/components/icons/SparkleIcon';
 import { useToast } from '@/hooks/use-toast';
+import { usePremiumStatus } from '@/hooks/usePremiumStatus';
 
 interface GameplayClientProps {
   level: Level;
@@ -37,6 +38,7 @@ const getOperatorIcon = (operator: Problem['operator']) => {
 export default function GameplayClient({ level }: GameplayClientProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { isPremium, isLoading: isPremiumLoading } = usePremiumStatus();
   
   const [gameState, setGameState] = useState<GameState>({
     currentLevel: level,
@@ -56,14 +58,21 @@ export default function GameplayClient({ level }: GameplayClientProps) {
 
   useEffect(() => {
     setClientReady(true);
-    const problems = generateProblemsForLevel(level);
-    setGameState(prev => ({
-      ...prev,
-      problems: problems,
-      startTime: Date.now(),
-      questionTimeLeft: level.timePerQuestionSeconds ?? -1, // Initialize question timer
-    }));
-  }, [level]);
+    // Problem generation moved to a separate effect to wait for premium check
+  }, []);
+  
+  useEffect(() => {
+    if (clientReady && !isPremiumLoading && (!level.requiresPremium || isPremium)) {
+      const problems = generateProblemsForLevel(level);
+      setGameState(prev => ({
+        ...prev,
+        problems: problems,
+        startTime: Date.now(),
+        questionTimeLeft: level.timePerQuestionSeconds ?? -1,
+      }));
+    }
+  }, [clientReady, level, isPremium, isPremiumLoading]);
+
 
   const currentProblem = gameState.problems[gameState.currentProblemIndex];
 
@@ -176,7 +185,7 @@ export default function GameplayClient({ level }: GameplayClientProps) {
         return prev;
       });
     }, 1500);
-  }, [level, generateProblem]);
+  }, [level]);
 
   const handleQuestionTimeUp = useCallback(() => {
     if (!clientReady || gameState.isGameOver || !currentProblem || gameState.feedback) return;
@@ -228,10 +237,10 @@ export default function GameplayClient({ level }: GameplayClientProps) {
     setGameState(prev => ({...prev, dynamicDifficultyFactor: newDynamicDifficultyFactor})); // Update difficulty factor
     proceedToNextState(isCorrect, newScore, newLives, feedbackMessage, feedbackType);
 
-  }, [clientReady, gameState, currentProblem, level, toast, checkAnswer, proceedToNextState]);
+  }, [clientReady, gameState, currentProblem, level, toast, proceedToNextState]);
 
 
-  if (!clientReady || !currentProblem) {
+  if (isPremiumLoading || !clientReady) {
     return (
       <Card className="w-full max-w-xl p-6 md:p-8 shadow-xl bg-card rounded-2xl">
         <CardHeader className="text-center pb-4">
@@ -244,8 +253,43 @@ export default function GameplayClient({ level }: GameplayClientProps) {
             <div className="h-20 bg-muted/70 rounded-lg w-full animate-pulse delay-75"></div>
             <div className="h-14 bg-muted rounded-lg w-full animate-pulse delay-150"></div>
             <div className="h-12 bg-muted rounded-lg w-full animate-pulse delay-200"></div>
-            <span className="sr-only">Loading questions...</span>
+            <span className="sr-only">Loading...</span>
           </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const isLocked = level.requiresPremium && !isPremium;
+  if (isLocked) {
+    return (
+       <Card className="w-full max-w-md p-6 text-center shadow-2xl bg-card/90 backdrop-blur-sm rounded-xl border-2 border-yellow-400">
+        <CardHeader>
+          <Lock className="mx-auto h-16 w-16 mb-4 text-yellow-500"/>
+          <CardTitle className="text-3xl font-bold text-primary">Level Locked!</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-lg text-muted-foreground">This is a premium level. Upgrade to play!</p>
+        </CardContent>
+        <CardFooter className="flex flex-col sm:flex-row gap-4 mt-6">
+          <Button onClick={() => router.push('/premium')} className="w-full text-lg py-6 btn-3d-accent bg-yellow-500 hover:bg-yellow-600">
+            <Crown className="mr-2 h-5 w-5" /> Go Premium
+          </Button>
+        </CardFooter>
+      </Card>
+    );
+  }
+
+  if (!currentProblem) {
+    // This state can happen briefly while problems are being generated.
+    return (
+      <Card className="w-full max-w-xl p-6 md:p-8 shadow-xl bg-card rounded-2xl">
+        <CardHeader className="text-center pb-4">
+          <CardTitle className="text-3xl sm:text-4xl font-headline text-primary">{level.title}</CardTitle>
+          <CardDescription className="text-base sm:text-lg text-foreground/80">{level.description}</CardDescription>
+        </CardHeader>
+        <CardContent className="text-center py-10">
+          <p>Generating problems...</p>
         </CardContent>
       </Card>
     );
@@ -321,14 +365,14 @@ export default function GameplayClient({ level }: GameplayClientProps) {
             value={gameState.userAnswer}
             onChange={(e) => setGameState(prev => ({ ...prev, userAnswer: e.target.value }))}
             placeholder="Your Answer"
-            className="text-xl sm:text-2xl h-11 sm:h-12 text-center rounded-lg focus:ring-2 focus:ring-accent shadow-sm"
+            className="text-2xl sm:text-3xl h-12 sm:h-14 text-center rounded-lg focus:ring-2 focus:ring-accent shadow-sm"
             aria-label="Enter your answer"
             disabled={!!gameState.feedback || gameState.isGameOver}
             autoFocus
           />
           <Button 
             type="submit" 
-            className="w-full text-lg sm:text-xl py-2.5 sm:py-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground btn-3d"
+            className="w-full text-xl sm:text-2xl py-3 sm:py-4 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground btn-3d"
             disabled={!!gameState.feedback || gameState.isGameOver || !gameState.userAnswer}
             aria-label="Submit Answer"
           >

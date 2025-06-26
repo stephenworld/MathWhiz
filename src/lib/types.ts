@@ -23,6 +23,7 @@ export interface Level {
   timePerQuestionSeconds?: number; // Optional: for individual questions
   rewardMessage?: string;
   isSpeedChallenge?: boolean; // Indicates if this level uses adaptive speed logic
+  requiresPremium?: boolean; // Indicates if this level is for premium users
 }
 
 export interface GameState {
