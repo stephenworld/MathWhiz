@@ -20,7 +20,7 @@ export default function HomePage() {
       </div>
 
       <footer className="absolute bottom-4 text-sm text-foreground/60">
-        Built with fun and learning in mind by <b>LASU EDTECH Student</b>
+        Built with fun and learning in mind by <b>LASUED EDTECH Student</b>
       </footer>
     </div>
   );
