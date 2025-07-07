@@ -1,4 +1,4 @@
-# Math Whiz Kids
+# JEMDARS
 
 ## Core Features
 

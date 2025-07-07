@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Math Whiz Kids',
+  title: 'JEMDARS',
   description: 'Fun and interactive math game for children aged 4-12',
 };
 
